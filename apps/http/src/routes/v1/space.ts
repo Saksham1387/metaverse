@@ -94,7 +94,7 @@ spaceRouter.delete("/:spaceId", userMiddleware, async (req, res) => {
     return;
   }
   if (space.creatorId !== req.userId) {
-    res.status(401).json({ message: "Unauthorized" });
+    res.status(403).json({ message: "Unauthorized" });
     return;
   }
 
@@ -164,66 +164,66 @@ spaceRouter.post("/element", userMiddleware, async (req, res) => {
 });
 
 spaceRouter.delete("/element", userMiddleware, async (req, res) => {
-  const parsedData = deleteElementSchema.safeParse(req.body);
+  console.log("spaceElement?.space1 ")
+  const parsedData = deleteElementSchema.safeParse(req.body)
   if (!parsedData.success) {
-    res.status(400).json({ message: "Invalid data" });
-    return;
+      res.status(400).json({message: "Validation failed"})
+      return
   }
-  const spaceElment = await client.spaceElements.findUnique({
-    where: {
-      id: parsedData.data.id,
-    },
-    include: {
-      space: true,
-    },
-  });
-  if (
-    !spaceElment?.space.creatorId ||
-    spaceElment.space.creatorId !== req.userId
-  ) {
-    res.status(400).json({ message: "Invalid elementId" });
-    return;
+  const spaceElement = await client.spaceElements.findFirst({
+      where: {
+          id: parsedData.data.id
+      }, 
+      include: {
+          space: true
+      }
+  })
+  console.log(spaceElement?.space)
+  console.log("spaceElement?.space")
+  if (!spaceElement?.space.creatorId || spaceElement.space.creatorId !== req.userId) {
+      res.status(403).json({message: "Unauthorized"})
+      return
   }
   await client.spaceElements.delete({
-    where: {
-      id: parsedData.data.id,
-    },
-  });
-  res.json({
-    message: "element-deleted",
-  });
-});
-
-spaceRouter.get("/:spaceId",userMiddleware,async (req, res) => {
-  const space = await client.space.findUnique({
-    where: {
-      id: req.params.spaceId,
-    },
-    include: {
-      elements: {
-        include:{
-          element:true
-        }
-      },
-    },
-  });
-  if (!space) {
-    res.status(400).json({ message: "Invalid spaceId" });
-    return;
-  }
-  res.json({
-    "dimensions": `${space.width}x${space.height}`,
-    elements: space.elements.map(e => ({
-        id: e.id,
-        element: {
-            id: e.element.id,
-            imageUrl: e.element.imageUrl,
-            width: e.element.width,
-            height: e.element.height,
-            static: e.element.static
-        },
-        x: e.x,
-        y: e.y
-    })),
+      where: {
+          id: parsedData.data.id
+      }
+  })
+  res.json({message: "Element deleted"})
 })
-});
+
+spaceRouter.get("/:spaceId",async (req, res) => {
+  const space = await client.space.findUnique({
+      where: {
+          id: req.params.spaceId
+      },
+      include: {
+          elements: {
+              include: {
+                  element: true
+              }
+          },
+      }
+  })
+
+  if (!space) {
+      res.status(400).json({message: "Space not found"})
+      return
+  }
+
+  res.json({
+      "dimensions": `${space.width}x${space.height}`,
+      elements: space.elements.map(e => ({
+          id: e.id,
+          element: {
+              id: e.element.id,
+              imageUrl: e.element.imageUrl,
+              width: e.element.width,
+              height: e.element.height,
+              static: e.element.static
+          },
+          x: e.x,
+          y: e.y
+      })),
+  })
+})
